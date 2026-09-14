@@ -10,16 +10,27 @@ def _fmt_usd(value: float) -> str:
     sign = "-" if value < 0 else ""
     return f"{sign}${abs(value):,.2f}"
 
+
 PAGE = """
 <!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
+  <meta name="color-scheme" content="light dark">
   <title>Coinbase Momentum Bot</title>
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('cmb-theme');
+        var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%E2%9A%A1</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0&display=swap" rel="stylesheet">
   <style>
     :root {
       --paper: #f7f4ee;
@@ -28,14 +39,30 @@ PAGE = """
       --ink-dim: #7a7669;
       --ink-faint: #a8a396;
       --hairline: #ddd8cb;
-      --periwinkle: #7c8fc9;
-      --periwinkle-bg: rgba(124,143,201,0.13);
+      --periwinkle: #6674b8;
+      --periwinkle-bg: rgba(102,116,184,0.12);
       --tan: #c98a4b;
       --tan-bg: rgba(201,138,75,0.14);
       --green: #3c7a5c;
       --green-bg: rgba(60,122,92,0.10);
       --red: #a8452f;
       --red-bg: rgba(168,69,47,0.10);
+    }
+    html[data-theme="dark"] {
+      --paper: #0b0e11;
+      --paper-alt: #161a1e;
+      --ink: #eaecef;
+      --ink-dim: #848e9c;
+      --ink-faint: #5e6673;
+      --hairline: #262b31;
+      --periwinkle: #93a4e8;
+      --periwinkle-bg: rgba(147,164,232,0.14);
+      --tan: #f0b90b;
+      --tan-bg: rgba(240,185,11,0.14);
+      --green: #0ecb81;
+      --green-bg: rgba(14,203,129,0.12);
+      --red: #f6465d;
+      --red-bg: rgba(246,70,93,0.12);
     }
     * { box-sizing: border-box; }
     body {
@@ -44,16 +71,42 @@ PAGE = """
       background: var(--paper);
       color: var(--ink);
       min-height: 100vh;
+      transition: background 0.2s ease, color 0.2s ease;
     }
     .serif { font-family: 'Fraunces', Georgia, serif; }
     .mono { font-family: 'JetBrains Mono', monospace; }
     .wrap { max-width: 1160px; margin: 0 auto; padding: 40px 24px 70px; }
 
+    .icon {
+      font-family: 'Material Symbols Rounded';
+      font-weight: normal; font-style: normal;
+      font-size: 20px; line-height: 1; letter-spacing: normal; text-transform: none;
+      white-space: nowrap; word-wrap: normal; direction: ltr;
+      -webkit-font-smoothing: antialiased;
+      font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle; display: inline-block;
+    }
+
     .kicker { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 10px; }
 
     .topbar { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 16px; border-bottom: 1px solid var(--hairline); padding-bottom: 24px; }
-    .brand h1 { font-size: 32px; font-weight: 500; margin: 0; letter-spacing: -0.01em; }
-    .brand .sub { font-size: 13px; color: var(--ink-dim); margin-top: 6px; }
+    .brand-row { display: flex; align-items: center; gap: 14px; }
+    .logo-badge { width: 42px; height: 42px; border-radius: 12px; background: var(--tan); color: #1c1b18; display: flex; align-items: center; justify-content: center; flex: none; }
+    .logo-badge .icon { font-size: 22px; }
+    .brand h1 { font-size: 30px; font-weight: 500; margin: 0; letter-spacing: -0.01em; }
+    .brand .sub { font-size: 13px; color: var(--ink-dim); margin-top: 4px; }
+
+    .topbar-actions { display: flex; align-items: center; gap: 10px; }
+    .theme-toggle {
+      width: 38px; height: 38px; border-radius: 100px; border: 1px solid var(--hairline);
+      background: var(--paper-alt); color: var(--ink-dim); display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .theme-toggle:hover { color: var(--ink); border-color: var(--ink-faint); }
+    .theme-toggle .icon-sun { display: none; }
+    .theme-toggle .icon-moon { display: inline-block; }
+    html[data-theme="dark"] .theme-toggle .icon-sun { display: inline-block; }
+    html[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
 
     .pill { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 100px; font-size: 12px; font-weight: 500; border: 1px solid var(--hairline); background: var(--paper-alt); }
     .pill .dot { width: 6px; height: 6px; border-radius: 50%; }
@@ -71,7 +124,8 @@ PAGE = """
     @media (max-width: 720px) { .grid { grid-template-columns: repeat(2, 1fr); } }
     .stat { padding: 22px 24px; border-right: 1px solid var(--hairline); }
     .stat:last-child { border-right: none; }
-    .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 10px; }
+    .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .stat .label .icon { font-size: 15px; }
     .stat .value { font-family: 'Fraunces', Georgia, serif; font-size: 34px; font-weight: 500; letter-spacing: -0.01em; font-variant-numeric: oldstyle-nums; }
     .stat .value.green { color: var(--green); }
     .stat .value.red { color: var(--red); }
@@ -79,7 +133,8 @@ PAGE = """
 
     .section { padding: 40px 0; border-bottom: 1px solid var(--hairline); }
     .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
-    .section-head h2 { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 500; margin: 0; }
+    .section-head h2 { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 500; margin: 0; display: flex; align-items: center; gap: 8px; }
+    .section-head h2 .icon { font-size: 19px; color: var(--ink-faint); }
     .section-head .count { font-size: 12px; color: var(--ink-faint); }
 
     table { border-collapse: collapse; width: 100%; }
@@ -89,15 +144,18 @@ PAGE = """
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--paper-alt); }
     td.num { font-family: 'JetBrains Mono', monospace; }
-    .sym { font-weight: 600; }
+    .sym { font-weight: 600; display: inline-flex; align-items: center; }
     .sym .tick { color: var(--ink-faint); font-weight: 400; font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-left: 4px; }
+    .coin-badge {
+      width: 22px; height: 22px; border-radius: 50%; background: var(--periwinkle-bg); color: var(--periwinkle);
+      display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700;
+      margin-right: 8px; flex: none;
+    }
 
-    .tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; }
-    .tag .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .tag { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; }
+    .tag .icon { font-size: 15px; }
     .tag-tp { color: var(--green); }
-    .tag-tp .dot { background: var(--green); }
     .tag-sl { color: var(--red); }
-    .tag-sl .dot { background: var(--red); }
 
     .pos { color: var(--green); }
     .neg { color: var(--red); }
@@ -105,6 +163,11 @@ PAGE = """
     .empty { padding: 44px 6px; color: var(--ink-faint); font-size: 13px; font-style: italic; }
 
     .equity-svg { width: 100%; height: 130px; display: block; }
+    .equity-svg .zero-line { stroke: var(--hairline); }
+    .equity-svg .line.pos { stroke: var(--green); }
+    .equity-svg .line.neg { stroke: var(--red); }
+    .equity-svg .dot.pos { fill: var(--green); }
+    .equity-svg .dot.neg { fill: var(--red); }
     .chart-caption { font-size: 12px; color: var(--ink-dim); font-style: italic; margin-top: 12px; }
 
     footer { text-align: center; color: var(--ink-faint); font-size: 11px; margin-top: 32px; }
@@ -114,15 +177,24 @@ PAGE = """
   <div class="wrap">
     <div class="kicker">{{ now_label }} &middot; live strategy monitor</div>
     <div class="topbar">
-      <div class="brand">
-        <h1 class="serif">Coinbase Momentum Bot</h1>
-        <div class="sub">Scanning {{ product_count }} USD/USDC pairs &middot; updated <span id="ts">just now</span></div>
+      <div class="brand-row">
+        <div class="logo-badge"><span class="icon">bolt</span></div>
+        <div class="brand">
+          <h1 class="serif">Coinbase Momentum Bot</h1>
+          <div class="sub">Scanning {{ product_count }} USD/USDC pairs &middot; updated <span id="ts">just now</span></div>
+        </div>
       </div>
-      {% if dry_run %}
-      <div class="pill pill-dry"><span class="dot"></span>Dry run — no live orders</div>
-      {% else %}
-      <div class="pill pill-live"><span class="dot"></span>Live — trading real funds</div>
-      {% endif %}
+      <div class="topbar-actions">
+        {% if dry_run %}
+        <div class="pill pill-dry"><span class="dot"></span>Dry run — no live orders</div>
+        {% else %}
+        <div class="pill pill-live"><span class="dot"></span>Live — trading real funds</div>
+        {% endif %}
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle color theme" title="Toggle color theme">
+          <span class="icon icon-sun">light_mode</span>
+          <span class="icon icon-moon">dark_mode</span>
+        </button>
+      </div>
     </div>
 
     <div class="strategy-row">
@@ -136,17 +208,17 @@ PAGE = """
     <div id="stats">{{ stats_html|safe }}</div>
 
     <div class="section">
-      <div class="section-head"><h2>Equity curve</h2><span class="count">realized P&amp;L over time</span></div>
+      <div class="section-head"><h2><span class="icon">show_chart</span>Equity curve</h2><span class="count">realized P&amp;L over time</span></div>
       {{ equity_svg|safe }}
     </div>
 
     <div class="section">
-      <div class="section-head"><h2>Open positions</h2><span class="count">{{ open_positions|length }} active</span></div>
+      <div class="section-head"><h2><span class="icon">radar</span>Open positions</h2><span class="count">{{ open_positions|length }} active</span></div>
       <div id="open-table">{{ open_table_html|safe }}</div>
     </div>
 
     <div class="section" style="border-bottom: none;">
-      <div class="section-head"><h2>Closed trades</h2><span class="count">{{ closed_positions|length }} total</span></div>
+      <div class="section-head"><h2><span class="icon">receipt_long</span>Closed trades</h2><span class="count">{{ closed_positions|length }} total</span></div>
       <div id="closed-table">{{ closed_table_html|safe }}</div>
     </div>
 
@@ -154,6 +226,12 @@ PAGE = """
   </div>
 
   <script>
+    function toggleTheme() {
+      var html = document.documentElement;
+      var next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      html.setAttribute('data-theme', next);
+      try { localStorage.setItem('cmb-theme', next); } catch (e) {}
+    }
     async function refresh() {
       try {
         const res = await fetch('/api/render');
@@ -181,22 +259,22 @@ def _render_stats(open_positions, closed_positions) -> str:
     return f"""
     <div class="grid">
       <div class="stat">
-        <div class="label">Open positions</div>
+        <div class="label"><span class="icon">stacks</span>Open positions</div>
         <div class="value">{len(open_positions)}</div>
         <div class="foot">${open_exposure:,.2f} exposed</div>
       </div>
       <div class="stat">
-        <div class="label">Closed trades</div>
+        <div class="label"><span class="icon">history</span>Closed trades</div>
         <div class="value">{len(closed_positions)}</div>
         <div class="foot">{wins} wins &middot; {len(closed_positions) - wins} losses</div>
       </div>
       <div class="stat">
-        <div class="label">Total P&amp;L</div>
+        <div class="label"><span class="icon">account_balance_wallet</span>Total P&amp;L</div>
         <div class="value {pnl_cls}">{_fmt_usd(total_pnl)}</div>
         <div class="foot">realized, all time</div>
       </div>
       <div class="stat">
-        <div class="label">Win rate</div>
+        <div class="label"><span class="icon">target</span>Win rate</div>
         <div class="value">{win_rate:.0f}%</div>
         <div class="foot">of closed trades</div>
       </div>
@@ -229,17 +307,15 @@ def _render_equity_svg(closed_positions) -> str:
 
     zero_y = height - pad - ((0 - lo) / span) * (height - 2 * pad)
     line = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
-    color = "#3c7a5c" if cumulative[-1] >= 0 else "#a8452f"
+    sign_cls = "pos" if cumulative[-1] >= 0 else "neg"
 
-    circles = "".join(
-        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="{color}"/>' for x, y in [points[-1]]
-    )
+    last_x, last_y = points[-1]
 
     svg = f"""
     <svg class="equity-svg" viewBox="0 0 {width} {height}" preserveAspectRatio="none">
-      <line x1="{pad}" y1="{zero_y:.1f}" x2="{width - pad}" y2="{zero_y:.1f}" stroke="#ddd8cb" stroke-width="1" stroke-dasharray="3 5"/>
-      <polyline points="{line}" fill="none" stroke="{color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-      {circles}
+      <line class="zero-line" x1="{pad}" y1="{zero_y:.1f}" x2="{width - pad}" y2="{zero_y:.1f}" stroke-width="1" stroke-dasharray="3 5"/>
+      <polyline class="line {sign_cls}" points="{line}" fill="none" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle class="dot {sign_cls}" cx="{last_x:.1f}" cy="{last_y:.1f}" r="3"/>
     </svg>
     """
     caption = f"Final realized P&amp;L: {_fmt_usd(cumulative[-1])} across {len(cumulative)} closed trades."
@@ -269,7 +345,7 @@ def _render_open_table(open_positions, price_lookup) -> str:
         base, quote = (p["product_id"].split("-") + [""])[:2]
         rows.append(f"""
         <tr>
-          <td><span class="sym">{base}<span class="tick">/{quote}</span></span></td>
+          <td><span class="sym"><span class="coin-badge">{base[:1]}</span>{base}<span class="tick">/{quote}</span></span></td>
           <td class="num">{p['entry_price']:.6f}</td>
           <td class="num">{p['quantity']:.6f}</td>
           <td class="num">${p['usd_size']:.2f}</td>
@@ -296,9 +372,9 @@ def _render_closed_table(closed_positions) -> str:
     rows = []
     for p in closed_positions:
         tag = (
-            '<span class="tag tag-tp"><span class="dot"></span>Take profit</span>'
+            '<span class="tag tag-tp"><span class="icon">trending_up</span>Take profit</span>'
             if p["exit_reason"] == "take_profit"
-            else '<span class="tag tag-sl"><span class="dot"></span>Stop loss</span>'
+            else '<span class="tag tag-sl"><span class="icon">trending_down</span>Stop loss</span>'
         )
         cls_usd = "pos" if (p["pnl_usd"] or 0) >= 0 else "neg"
         cls_pct = "pos" if (p["pnl_pct"] or 0) >= 0 else "neg"
@@ -306,7 +382,7 @@ def _render_closed_table(closed_positions) -> str:
         base, quote = (p["product_id"].split("-") + [""])[:2]
         rows.append(f"""
         <tr>
-          <td><span class="sym">{base}<span class="tick">/{quote}</span></span></td>
+          <td><span class="sym"><span class="coin-badge">{base[:1]}</span>{base}<span class="tick">/{quote}</span></span></td>
           <td class="num">{p['entry_price']:.6f}</td>
           <td class="num">{p['exit_price']:.6f}</td>
           <td>{tag}</td>
