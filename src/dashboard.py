@@ -26,7 +26,7 @@ PAGE = """
       } catch (e) {}
     })();
   </script>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%E2%9A%A1</text></svg>">
+  <link rel="icon" type="image/png" href="/static/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0&display=swap" rel="stylesheet">
@@ -89,9 +89,9 @@ PAGE = """
     .kicker { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 10px; }
 
     .topbar { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 16px; border-bottom: 1px solid var(--hairline); padding-bottom: 24px; }
-    .brand-row { display: flex; align-items: center; gap: 14px; }
-    .logo-badge { width: 42px; height: 42px; border-radius: 12px; background: var(--tan); color: #1c1b18; display: flex; align-items: center; justify-content: center; flex: none; }
-    .logo-badge .icon { font-size: 22px; }
+    .brand-row { display: flex; align-items: center; gap: 12px; }
+    .logo-badge { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; flex: none; }
+    .logo-badge img { width: 100%; height: 100%; object-fit: contain; }
     .brand h1 { font-size: 30px; font-weight: 500; margin: 0; letter-spacing: -0.01em; }
     .brand .sub { font-size: 13px; color: var(--ink-dim); margin-top: 4px; }
 
@@ -177,7 +177,7 @@ PAGE = """
     <div class="kicker">{{ now_label }} &middot; live strategy monitor</div>
     <div class="topbar">
       <div class="brand-row">
-        <div class="logo-badge"><span class="icon">bolt</span></div>
+        <div class="logo-badge"><img src="/static/logo.png" alt="Coinbase Momentum Bot logo"></div>
         <div class="brand">
           <h1 class="serif">Coinbase Momentum Bot</h1>
           <div class="sub">Scanning {{ product_count }} USD/USDC pairs &middot; updated <span id="ts">just now</span></div>
