@@ -22,7 +22,7 @@ def main():
     else:
         logger.info("Starting in LIVE mode - real orders will be placed")
 
-    app = create_app(store)
+    app = create_app(store, client, config)
     dashboard_thread = threading.Thread(
         target=lambda: app.run(host="0.0.0.0", port=config.dashboard_port, use_reloader=False),
         daemon=True,
