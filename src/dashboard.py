@@ -119,9 +119,7 @@ PAGE = """
     .strategy-row .item b { color: var(--ink); font-weight: 600; }
     .strategy-row .item .lbl { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); margin-bottom: 3px; }
 
-    .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 8px; }
-    @media (max-width: 980px) { .grid { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 560px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 8px; }
     .stat { padding: 18px 20px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--paper-alt); }
     .stat .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
     .stat .label .icon { font-size: 15px; }
@@ -131,6 +129,10 @@ PAGE = """
     .stat .value.warn { color: var(--tan); }
     .stat .foot { font-size: 11.5px; color: var(--ink-dim); margin-top: 6px; }
     .stat .foot.warn { color: var(--tan); }
+    .stat .today-pnl { display: flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--hairline); }
+    .stat .today-pnl .icon { font-size: 14px; }
+    .stat .today-pnl.green { color: var(--green); }
+    .stat .today-pnl.red { color: var(--red); }
 
     .section { padding: 40px 0; border-bottom: 1px solid var(--hairline); }
     .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
@@ -198,6 +200,8 @@ PAGE = """
       </div>
     </div>
 
+    <div id="stats">{{ stats_html|safe }}</div>
+
     <div class="strategy-row">
       <div class="item"><span class="lbl">Buy trigger</span><b>+{{ cfg.pump_threshold_pct|int }}% / {{ cfg.pump_window_minutes }}m</b></div>
       <div class="item"><span class="lbl">Take profit</span><b>+{{ cfg.take_profit_pct|int }}%</b></div>
@@ -205,8 +209,6 @@ PAGE = """
       <div class="item"><span class="lbl">Position size</span><b>${{ '%.0f'|format(cfg.position_size_usd) }} / coin</b></div>
       <div class="item"><span class="lbl">Poll interval</span><b>{{ cfg.poll_interval_seconds }}s</b></div>
     </div>
-
-    <div id="stats">{{ stats_html|safe }}</div>
 
     <div class="section">
       <div class="section-head"><h2><span class="icon">show_chart</span>Equity curve</h2><span class="count">realized P&amp;L over time</span></div>
@@ -285,11 +287,7 @@ def _render_stats(open_positions, closed_positions, balance, position_size_usd) 
         <div class="label"><span class="icon">account_balance</span>Balance</div>
         <div class="value">{balance_value}</div>
         <div class="foot {balance_foot_cls}">{balance_foot}</div>
-      </div>
-      <div class="stat">
-        <div class="label"><span class="icon">today</span>Today's P&amp;L</div>
-        <div class="value {today_cls}">{_fmt_usd(today_pnl)}</div>
-        <div class="foot">{today_count} trade{'s' if today_count != 1 else ''} today</div>
+        <div class="today-pnl {today_cls}"><span class="icon">today</span>Today {_fmt_usd(today_pnl)} &middot; {today_count} trade{'s' if today_count != 1 else ''}</div>
       </div>
       <div class="stat">
         <div class="label"><span class="icon">paid</span>Total P&amp;L</div>
