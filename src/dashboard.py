@@ -119,16 +119,18 @@ PAGE = """
     .strategy-row .item b { color: var(--ink); font-weight: 600; }
     .strategy-row .item .lbl { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-faint); margin-bottom: 3px; }
 
-    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-bottom: 8px; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
-    @media (max-width: 720px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-    .stat { padding: 22px 24px; border-right: 1px solid var(--hairline); }
-    .stat:last-child { border-right: none; }
-    .stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+    .grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 8px; }
+    @media (max-width: 980px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 560px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+    .stat { padding: 18px 20px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--paper-alt); }
+    .stat .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
     .stat .label .icon { font-size: 15px; }
-    .stat .value { font-family: 'Fraunces', Georgia, serif; font-size: 34px; font-weight: 500; letter-spacing: -0.01em; font-variant-numeric: oldstyle-nums; }
+    .stat .value { font-family: 'Fraunces', Georgia, serif; font-size: 28px; font-weight: 500; letter-spacing: -0.01em; font-variant-numeric: oldstyle-nums; }
     .stat .value.green { color: var(--green); }
     .stat .value.red { color: var(--red); }
-    .stat .foot { font-size: 12px; color: var(--ink-dim); margin-top: 6px; }
+    .stat .value.warn { color: var(--tan); }
+    .stat .foot { font-size: 11.5px; color: var(--ink-dim); margin-top: 6px; }
+    .stat .foot.warn { color: var(--tan); }
 
     .section { padding: 40px 0; border-bottom: 1px solid var(--hairline); }
     .section-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
@@ -248,15 +250,57 @@ PAGE = """
 """
 
 
-def _render_stats(open_positions, closed_positions) -> str:
+def _todays_pnl(closed_positions):
+    start_of_day = dt.datetime.combine(dt.date.today(), dt.time.min).timestamp()
+    todays = [p for p in closed_positions if p["exit_time"] and p["exit_time"] >= start_of_day]
+    return sum((p["pnl_usd"] or 0) for p in todays), len(todays)
+
+
+def _render_stats(open_positions, closed_positions, balance, position_size_usd) -> str:
     total_pnl = sum((p["pnl_usd"] or 0) for p in closed_positions)
     wins = sum(1 for p in closed_positions if (p["pnl_usd"] or 0) > 0)
     win_rate = (wins / len(closed_positions) * 100) if closed_positions else 0.0
     open_exposure = sum(p["usd_size"] for p in open_positions)
+    today_pnl, today_count = _todays_pnl(closed_positions)
 
     pnl_cls = "green" if total_pnl >= 0 else "red"
+    today_cls = "green" if today_pnl >= 0 else "red"
+
+    if balance is None:
+        balance_value = "&mdash;"
+        balance_foot = "unable to fetch balance"
+        balance_foot_cls = "warn"
+    else:
+        balance_value = f"${balance:,.2f}"
+        if balance < position_size_usd:
+            balance_foot = f"below ${position_size_usd:,.0f} position size"
+            balance_foot_cls = "warn"
+        else:
+            balance_foot = "available to trade"
+            balance_foot_cls = ""
+
     return f"""
     <div class="grid">
+      <div class="stat">
+        <div class="label"><span class="icon">account_balance</span>Balance</div>
+        <div class="value">{balance_value}</div>
+        <div class="foot {balance_foot_cls}">{balance_foot}</div>
+      </div>
+      <div class="stat">
+        <div class="label"><span class="icon">today</span>Today's P&amp;L</div>
+        <div class="value {today_cls}">{_fmt_usd(today_pnl)}</div>
+        <div class="foot">{today_count} trade{'s' if today_count != 1 else ''} today</div>
+      </div>
+      <div class="stat">
+        <div class="label"><span class="icon">paid</span>Total P&amp;L</div>
+        <div class="value {pnl_cls}">{_fmt_usd(total_pnl)}</div>
+        <div class="foot">realized, all time</div>
+      </div>
+      <div class="stat">
+        <div class="label"><span class="icon">target</span>Win rate</div>
+        <div class="value">{win_rate:.0f}%</div>
+        <div class="foot">of closed trades</div>
+      </div>
       <div class="stat">
         <div class="label"><span class="icon">stacks</span>Open positions</div>
         <div class="value">{len(open_positions)}</div>
@@ -266,16 +310,6 @@ def _render_stats(open_positions, closed_positions) -> str:
         <div class="label"><span class="icon">history</span>Closed trades</div>
         <div class="value">{len(closed_positions)}</div>
         <div class="foot">{wins} wins &middot; {len(closed_positions) - wins} losses</div>
-      </div>
-      <div class="stat">
-        <div class="label"><span class="icon">account_balance_wallet</span>Total P&amp;L</div>
-        <div class="value {pnl_cls}">{_fmt_usd(total_pnl)}</div>
-        <div class="foot">realized, all time</div>
-      </div>
-      <div class="stat">
-        <div class="label"><span class="icon">target</span>Win rate</div>
-        <div class="value">{win_rate:.0f}%</div>
-        <div class="foot">of closed trades</div>
       </div>
     </div>
     """
@@ -416,12 +450,21 @@ def create_app(store: PositionStore, client=None, config: Config = None) -> Flas
                 continue
         return lookup
 
+    def _get_balance():
+        if client is None:
+            return None
+        try:
+            return client.get_usd_balance()
+        except Exception:
+            return None
+
     def _fragments():
         open_positions = store.get_open_positions()
         closed_positions = store.get_closed_positions()
         prices = _price_lookup(open_positions)
+        balance = _get_balance()
         return {
-            "stats_html": _render_stats(open_positions, closed_positions),
+            "stats_html": _render_stats(open_positions, closed_positions, balance, config.position_size_usd),
             "open_table_html": _render_open_table(open_positions, prices),
             "closed_table_html": _render_closed_table(closed_positions),
             "equity_svg": _render_equity_svg(closed_positions),

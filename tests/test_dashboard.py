@@ -3,19 +3,23 @@ import os
 import pytest
 
 from src.config import Config
-from src.dashboard import create_app
+from src.dashboard import _todays_pnl, create_app
 from src.positions import PositionStore
 
 
 class FakePriceClient:
-    def __init__(self, prices):
+    def __init__(self, prices, balance=None):
         self.prices = prices
+        self.balance = balance
 
     def get_current_price(self, product_id):
         return self.prices[product_id]
 
     def list_tradable_products(self, quote_currencies):
         return ["BTC-USD", "ETH-USD"]
+
+    def get_usd_balance(self):
+        return self.balance
 
 
 @pytest.fixture
@@ -66,3 +70,35 @@ def test_api_positions_unchanged(store):
     data = resp.get_json()
     assert len(data["open"]) == 1
     assert data["open"][0]["product_id"] == "SOL-USD"
+
+
+def test_index_shows_account_balance(store):
+    fake_client = FakePriceClient({}, balance=48.75)
+    app = create_app(store, client=fake_client, config=Config())
+    resp = app.test_client().get("/")
+
+    assert b"48.75" in resp.data
+    assert b"below" in resp.data  # 48.75 < default $100 position size
+
+
+def test_index_shows_dash_when_balance_unavailable(store):
+    app = create_app(store, client=None, config=Config())
+    resp = app.test_client().get("/")
+
+    assert b"unable to fetch balance" in resp.data
+
+
+def test_todays_pnl_only_counts_trades_closed_today():
+    import datetime as dt
+    import time
+
+    today_ts = int(time.time())
+    yesterday_ts = int((dt.datetime.now() - dt.timedelta(days=1)).timestamp())
+
+    closed = [
+        {"exit_time": today_ts, "pnl_usd": 8.0},
+        {"exit_time": yesterday_ts, "pnl_usd": 100.0},
+    ]
+    total, count = _todays_pnl(closed)
+    assert count == 1
+    assert total == 8.0
