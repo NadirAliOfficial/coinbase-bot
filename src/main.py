@@ -24,11 +24,11 @@ def main():
 
     app = create_app(store, client, config)
     dashboard_thread = threading.Thread(
-        target=lambda: app.run(host="0.0.0.0", port=config.dashboard_port, use_reloader=False),
+        target=lambda: app.run(host=config.dashboard_host, port=config.dashboard_port, use_reloader=False),
         daemon=True,
     )
     dashboard_thread.start()
-    logger.info(f"Dashboard running on http://localhost:{config.dashboard_port}")
+    logger.info(f"Dashboard running on http://{config.dashboard_host}:{config.dashboard_port}")
 
     while True:
         try:

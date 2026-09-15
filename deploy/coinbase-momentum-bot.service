@@ -1,0 +1,14 @@
+[Unit]
+Description=Coinbase Momentum Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/coinbase-momentum-bot
+ExecStart=/opt/coinbase-momentum-bot/.venv/bin/python -m src.main
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
