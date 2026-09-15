@@ -33,7 +33,7 @@ def test_index_renders_with_no_data(store):
     client = app.test_client()
     resp = client.get("/")
     assert resp.status_code == 200
-    assert b"Coinbase Momentum Bot" in resp.data
+    assert b"Coinbase Bot" in resp.data
     assert b"No open positions" in resp.data
     assert b"No closed trades yet" in resp.data
 
