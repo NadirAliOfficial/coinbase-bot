@@ -102,3 +102,29 @@ def test_todays_pnl_only_counts_trades_closed_today():
     total, count = _todays_pnl(closed)
     assert count == 1
     assert total == 8.0
+
+
+def test_dashboard_open_without_auth_configured(store):
+    app = create_app(store, client=None, config=Config())
+    resp = app.test_client().get("/")
+    assert resp.status_code == 200
+
+
+def test_dashboard_requires_auth_when_configured(store):
+    cfg = Config()
+    cfg.dashboard_user = "amery"
+    cfg.dashboard_password = "secret123"
+    app = create_app(store, client=None, config=cfg)
+    client = app.test_client()
+
+    resp = client.get("/")
+    assert resp.status_code == 401
+
+    import base64
+    creds = base64.b64encode(b"amery:secret123").decode()
+    resp = client.get("/", headers={"Authorization": f"Basic {creds}"})
+    assert resp.status_code == 200
+
+    bad_creds = base64.b64encode(b"amery:wrong").decode()
+    resp = client.get("/", headers={"Authorization": f"Basic {bad_creds}"})
+    assert resp.status_code == 401

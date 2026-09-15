@@ -1,6 +1,7 @@
 import datetime as dt
+import hmac
 
-from flask import Flask, jsonify, render_template_string
+from flask import Flask, jsonify, render_template_string, request, Response
 
 from .config import Config
 from .positions import PositionStore
@@ -436,6 +437,24 @@ def _render_closed_table(closed_positions) -> str:
 def create_app(store: PositionStore, client=None, config: Config = None) -> Flask:
     app = Flask(__name__)
     config = config or Config()
+
+    @app.before_request
+    def _auth_guard():
+        if not config.dashboard_user:
+            return None
+        auth = request.authorization
+        valid = (
+            auth is not None
+            and hmac.compare_digest(auth.username, config.dashboard_user)
+            and hmac.compare_digest(auth.password, config.dashboard_password)
+        )
+        if not valid:
+            return Response(
+                "Authentication required",
+                401,
+                {"WWW-Authenticate": 'Basic realm="Coinbase Momentum Bot"'},
+            )
+        return None
 
     def _price_lookup(open_positions):
         lookup = {}
