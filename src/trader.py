@@ -20,14 +20,18 @@ class Trader:
         self.market_state = market_state
 
     def _fetch_one(self, product_id):
-        try:
-            candles = self.client.get_recent_closes(product_id, self.config.pump_window_minutes)
-        except Exception:
+        candles = None
+        for attempt in range(3):
+            try:
+                candles = self.client.get_recent_closes(product_id, self.config.pump_window_minutes)
+                break
+            except Exception:
+                if attempt < 2:
+                    time.sleep(0.5 * (attempt + 1))
+        if not candles:
             return None
 
         is_pump, pct_change = detect_pump(candles, self.config.pump_window_minutes, self.config.pump_threshold_pct)
-        if not candles:
-            return None
         return {
             "product_id": product_id,
             "pct_change": pct_change,
