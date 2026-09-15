@@ -13,7 +13,7 @@ class Trader:
         self.config = config
         self.store = store
 
-    def scan_and_buy(self) -> None:
+    def scan_and_buy(self) -> int:
         product_ids = self.client.list_tradable_products(self.config.quote_currencies)
         for product_id in product_ids:
             if self.store.has_open_position(product_id):
@@ -40,6 +40,8 @@ class Trader:
                 self.client.market_buy(product_id, self.config.position_size_usd)
 
             self.store.open_position(product_id, entry_price, quantity, self.config.position_size_usd)
+
+        return len(product_ids)
 
     def manage_open_positions(self) -> None:
         for position in self.store.get_open_positions():
@@ -71,4 +73,6 @@ class Trader:
 
     def run_cycle(self) -> None:
         self.manage_open_positions()
-        self.scan_and_buy()
+        scanned = self.scan_and_buy()
+        open_count = len(self.store.get_open_positions())
+        logger.info(f"cycle complete: scanned {scanned} products, {open_count} open position(s)")

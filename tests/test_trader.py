@@ -57,8 +57,9 @@ def test_scan_and_buy_opens_position_on_pump(config):
     client = FakeClient(prices={}, candles=candles)
     trader = Trader(client, config, store)
 
-    trader.scan_and_buy()
+    scanned = trader.scan_and_buy()
 
+    assert scanned == 1
     assert store.has_open_position("BTC-USD") is True
     assert client.buys == []  # dry run: no live order placed
 
