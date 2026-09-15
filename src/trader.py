@@ -1,3 +1,4 @@
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -12,16 +13,34 @@ logger = get_logger(__name__)
 TOP_MOVERS_LIMIT = 20
 
 
+class RateLimiter:
+    def __init__(self, max_per_second: float):
+        self._interval = 1.0 / max_per_second
+        self._lock = threading.Lock()
+        self._next_slot = 0.0
+
+    def wait(self):
+        with self._lock:
+            now = time.time()
+            start = max(now, self._next_slot)
+            self._next_slot = start + self._interval
+            delay = start - now
+        if delay > 0:
+            time.sleep(delay)
+
+
 class Trader:
     def __init__(self, client, config: Config, store: PositionStore, market_state=None):
         self.client = client
         self.config = config
         self.store = store
         self.market_state = market_state
+        self._rate_limiter = RateLimiter(config.scan_rate_limit_per_second)
 
     def _fetch_one(self, product_id):
         candles = None
         for attempt in range(3):
+            self._rate_limiter.wait()
             try:
                 candles = self.client.get_recent_closes(product_id, self.config.pump_window_minutes)
                 break

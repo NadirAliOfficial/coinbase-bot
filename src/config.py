@@ -20,6 +20,9 @@ class Config:
 
     poll_interval_seconds: int = field(default_factory=lambda: int(os.getenv("POLL_INTERVAL_SECONDS", "60")))
     scan_concurrency: int = field(default_factory=lambda: int(os.getenv("SCAN_CONCURRENCY", "8")))
+    scan_rate_limit_per_second: float = field(
+        default_factory=lambda: float(os.getenv("SCAN_RATE_LIMIT_PER_SECOND", "5"))
+    )
     pump_window_minutes: int = field(default_factory=lambda: int(os.getenv("PUMP_WINDOW_MINUTES", "15")))
     pump_threshold_pct: float = field(default_factory=lambda: float(os.getenv("PUMP_THRESHOLD_PCT", "15")))
     take_profit_pct: float = field(default_factory=lambda: float(os.getenv("TAKE_PROFIT_PCT", "8")))
