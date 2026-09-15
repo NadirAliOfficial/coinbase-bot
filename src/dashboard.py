@@ -181,6 +181,18 @@ PAGE = """
     .mover-bar-fill.hot { background: var(--green); }
 
     footer { text-align: center; color: var(--ink-faint); font-size: 11px; margin-top: 32px; }
+
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-scroll table { min-width: 640px; }
+
+    @media (max-width: 640px) {
+      .wrap { padding: 28px 16px 50px; }
+      .brand h1 { font-size: 23px; }
+      .brand .sub { font-size: 12px; }
+      .stat .value { font-size: 24px; }
+      .section { padding: 28px 0; }
+      .section-head h2 { font-size: 17px; }
+    }
   </style>
 </head>
 <body>
@@ -219,7 +231,7 @@ PAGE = """
 
     <div class="section">
       <div class="section-head"><h2><span class="icon">bolt</span>Top movers</h2><span class="count">live, right now</span></div>
-      <div id="top-movers">{{ top_movers_html|safe }}</div>
+      <div id="top-movers" class="table-scroll">{{ top_movers_html|safe }}</div>
     </div>
 
     <div class="section">
@@ -229,12 +241,12 @@ PAGE = """
 
     <div class="section">
       <div class="section-head"><h2><span class="icon">radar</span>Open positions</h2><span class="count">{{ open_positions|length }} active</span></div>
-      <div id="open-table">{{ open_table_html|safe }}</div>
+      <div id="open-table" class="table-scroll">{{ open_table_html|safe }}</div>
     </div>
 
     <div class="section" style="border-bottom: none;">
       <div class="section-head"><h2><span class="icon">receipt_long</span>Closed trades</h2><span class="count">{{ closed_positions|length }} total</span></div>
-      <div id="closed-table">{{ closed_table_html|safe }}</div>
+      <div id="closed-table" class="table-scroll">{{ closed_table_html|safe }}</div>
     </div>
 
     <footer>Coinbase Momentum Bot &middot; dashboard refreshes every 5 seconds</footer>
