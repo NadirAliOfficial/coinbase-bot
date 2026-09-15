@@ -174,6 +174,12 @@ PAGE = """
     .equity-svg .dot.neg { fill: var(--red); }
     .chart-caption { font-size: 12px; color: var(--ink-dim); font-style: italic; margin-top: 12px; }
 
+    .mover-bar { width: 160px; height: 6px; border-radius: 100px; background: var(--hairline); overflow: hidden; }
+    .mover-bar-fill { height: 100%; border-radius: 100px; }
+    .mover-bar-fill.cool { background: var(--periwinkle); opacity: 0.6; }
+    .mover-bar-fill.warm { background: var(--tan); }
+    .mover-bar-fill.hot { background: var(--green); }
+
     footer { text-align: center; color: var(--ink-faint); font-size: 11px; margin-top: 32px; }
   </style>
 </head>
@@ -212,6 +218,11 @@ PAGE = """
     </div>
 
     <div class="section">
+      <div class="section-head"><h2><span class="icon">bolt</span>Top movers</h2><span class="count">live, right now</span></div>
+      <div id="top-movers">{{ top_movers_html|safe }}</div>
+    </div>
+
+    <div class="section">
       <div class="section-head"><h2><span class="icon">show_chart</span>Equity curve</h2><span class="count">realized P&amp;L over time</span></div>
       {{ equity_svg|safe }}
     </div>
@@ -241,6 +252,7 @@ PAGE = """
         const res = await fetch('/api/render');
         const data = await res.json();
         document.getElementById('stats').innerHTML = data.stats_html;
+        document.getElementById('top-movers').innerHTML = data.top_movers_html;
         document.getElementById('open-table').innerHTML = data.open_table_html;
         document.getElementById('closed-table').innerHTML = data.closed_table_html;
         document.getElementById('ts').textContent = new Date().toLocaleTimeString();
@@ -434,7 +446,53 @@ def _render_closed_table(closed_positions) -> str:
     """
 
 
-def create_app(store: PositionStore, client=None, config: Config = None) -> Flask:
+def _render_top_movers(snapshot, threshold_pct) -> str:
+    top_movers = snapshot.get("top_movers") or []
+    scan_seconds = snapshot.get("scan_seconds")
+    products_scanned = snapshot.get("products_scanned") or 0
+
+    if scan_seconds is not None:
+        caption = f"{products_scanned} products scanned in {scan_seconds:.1f}s"
+    else:
+        caption = "First scan in progress..."
+
+    if not top_movers:
+        return f'<div class="empty">No market data yet. {caption}</div>'
+
+    rows = []
+    for m in top_movers:
+        pct = m["pct_change"]
+        base, quote = (m["product_id"].split("-") + [""])[:2]
+        progress = max(0.0, min(100.0, (pct / threshold_pct) * 100)) if threshold_pct else 0
+        if pct >= threshold_pct:
+            bar_cls, pct_cls = "hot", "pos"
+        elif progress >= 60:
+            bar_cls, pct_cls = "warm", ""
+        else:
+            bar_cls, pct_cls = "cool", ""
+
+        rows.append(f"""
+        <tr>
+          <td><span class="sym"><span class="coin-badge">{base[:1]}</span>{base}<span class="tick">/{quote}</span></span></td>
+          <td class="num {pct_cls}">{pct:+.2f}%</td>
+          <td>
+            <div class="mover-bar">
+              <div class="mover-bar-fill {bar_cls}" style="width:{progress:.0f}%"></div>
+            </div>
+          </td>
+        </tr>
+        """)
+
+    return f"""
+    <table>
+      <thead><tr><th>Product</th><th>15m change</th><th>Progress to +{threshold_pct:.0f}% trigger</th></tr></thead>
+      <tbody>{''.join(rows)}</tbody>
+    </table>
+    <div class="chart-caption">{caption}</div>
+    """
+
+
+def create_app(store: PositionStore, client=None, config: Config = None, market_state=None) -> Flask:
     app = Flask(__name__)
     config = config or Config()
 
@@ -480,27 +538,26 @@ def create_app(store: PositionStore, client=None, config: Config = None) -> Flas
         closed_positions = store.get_closed_positions()
         prices = _price_lookup(open_positions)
         balance = _get_balance()
+        snapshot = market_state.snapshot() if market_state is not None else {}
         return {
             "stats_html": _render_stats(open_positions, closed_positions, balance, config.position_size_usd),
+            "top_movers_html": _render_top_movers(snapshot, config.pump_threshold_pct),
             "open_table_html": _render_open_table(open_positions, prices),
             "closed_table_html": _render_closed_table(closed_positions),
             "equity_svg": _render_equity_svg(closed_positions),
             "open_positions": open_positions,
             "closed_positions": closed_positions,
+            "products_scanned": snapshot.get("products_scanned", 0),
         }
 
     @app.route("/")
     def index():
         frag = _fragments()
-        try:
-            product_count = len(client.list_tradable_products(config.quote_currencies)) if client else 0
-        except Exception:
-            product_count = 0
         return render_template_string(
             PAGE,
             cfg=config,
             dry_run=config.dry_run,
-            product_count=product_count,
+            product_count=frag["products_scanned"],
             now_label=dt.datetime.now().strftime("%B %d, %Y").upper(),
             **frag,
         )
@@ -511,6 +568,7 @@ def create_app(store: PositionStore, client=None, config: Config = None) -> Flas
         return jsonify(
             {
                 "stats_html": frag["stats_html"],
+                "top_movers_html": frag["top_movers_html"],
                 "open_table_html": frag["open_table_html"],
                 "closed_table_html": frag["closed_table_html"],
             }

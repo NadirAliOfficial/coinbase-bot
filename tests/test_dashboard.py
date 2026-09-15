@@ -4,6 +4,7 @@ import pytest
 
 from src.config import Config
 from src.dashboard import _todays_pnl, create_app
+from src.market_state import MarketState
 from src.positions import PositionStore
 
 
@@ -128,3 +129,26 @@ def test_dashboard_requires_auth_when_configured(store):
     bad_creds = base64.b64encode(b"amery:wrong").decode()
     resp = client.get("/", headers={"Authorization": f"Basic {bad_creds}"})
     assert resp.status_code == 401
+
+
+def test_top_movers_render_with_market_state(store):
+    market_state = MarketState()
+    market_state.update(
+        top_movers=[
+            {"product_id": "BTC-USD", "pct_change": 16.5, "is_pump": True, "last_close": 80000.0},
+            {"product_id": "ETH-USD", "pct_change": 3.2, "is_pump": False, "last_close": 3000.0},
+        ],
+        products_scanned=808,
+        scan_seconds=12.4,
+    )
+    app = create_app(store, client=None, config=Config(), market_state=market_state)
+    resp = app.test_client().get("/")
+
+    assert b"BTC" in resp.data
+    assert b"808 products scanned" in resp.data
+
+
+def test_top_movers_empty_state_without_market_state(store):
+    app = create_app(store, client=None, config=Config(), market_state=None)
+    resp = app.test_client().get("/")
+    assert b"No market data yet" in resp.data

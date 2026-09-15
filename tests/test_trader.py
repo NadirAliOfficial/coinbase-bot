@@ -4,6 +4,7 @@ import pytest
 
 from src.coinbase_client import Candle
 from src.config import Config
+from src.market_state import MarketState
 from src.positions import PositionStore
 from src.trader import Trader
 
@@ -114,3 +115,41 @@ def test_manage_open_positions_holds_when_within_range(config):
     trader.manage_open_positions()
 
     assert store.has_open_position("SOL-USD") is True
+
+
+def test_scan_and_buy_handles_multiple_products_concurrently(config):
+    store = PositionStore(config.db_path)
+    candles = {
+        "BTC-USD": make_candles([100.0] * 15 + [120.0]),  # pumps
+        "ETH-USD": make_candles([100.0] * 15 + [101.0]),  # does not pump
+        "SOL-USD": make_candles([100.0] * 15 + [130.0]),  # pumps
+    }
+    client = FakeClient(prices={}, candles=candles)
+    trader = Trader(client, config, store)
+
+    scanned = trader.scan_and_buy()
+
+    assert scanned == 3
+    assert store.has_open_position("BTC-USD") is True
+    assert store.has_open_position("SOL-USD") is True
+    assert store.has_open_position("ETH-USD") is False
+
+
+def test_scan_and_buy_updates_market_state_with_top_movers(config):
+    store = PositionStore(config.db_path)
+    candles = {
+        "BTC-USD": make_candles([100.0] * 15 + [120.0]),
+        "ETH-USD": make_candles([100.0] * 15 + [101.0]),
+    }
+    client = FakeClient(prices={}, candles=candles)
+    market_state = MarketState()
+    trader = Trader(client, config, store, market_state)
+
+    trader.scan_and_buy()
+    snapshot = market_state.snapshot()
+
+    assert snapshot["products_scanned"] == 2
+    assert snapshot["scan_seconds"] is not None
+    top_ids = [m["product_id"] for m in snapshot["top_movers"]]
+    assert top_ids[0] == "BTC-USD"  # highest pct_change first
+    assert "ETH-USD" in top_ids

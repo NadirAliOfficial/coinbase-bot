@@ -1,3 +1,6 @@
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from .config import Config
 from .logger import get_logger
 from .positions import PositionStore
@@ -6,40 +9,66 @@ from .scanner import detect_pump
 
 logger = get_logger(__name__)
 
+TOP_MOVERS_LIMIT = 20
+
 
 class Trader:
-    def __init__(self, client, config: Config, store: PositionStore):
+    def __init__(self, client, config: Config, store: PositionStore, market_state=None):
         self.client = client
         self.config = config
         self.store = store
+        self.market_state = market_state
+
+    def _fetch_one(self, product_id):
+        try:
+            candles = self.client.get_recent_closes(product_id, self.config.pump_window_minutes)
+        except Exception:
+            return None
+
+        is_pump, pct_change = detect_pump(candles, self.config.pump_window_minutes, self.config.pump_threshold_pct)
+        if not candles:
+            return None
+        return {
+            "product_id": product_id,
+            "pct_change": pct_change,
+            "is_pump": is_pump,
+            "last_close": candles[-1].close,
+        }
 
     def scan_and_buy(self) -> int:
+        start = time.time()
         product_ids = self.client.list_tradable_products(self.config.quote_currencies)
-        for product_id in product_ids:
+
+        results = []
+        with ThreadPoolExecutor(max_workers=self.config.scan_concurrency) as pool:
+            futures = {pool.submit(self._fetch_one, pid): pid for pid in product_ids}
+            for future in as_completed(futures):
+                result = future.result()
+                if result is not None:
+                    results.append(result)
+
+        for result in results:
+            if not result["is_pump"]:
+                continue
+            product_id = result["product_id"]
             if self.store.has_open_position(product_id):
                 continue
 
-            try:
-                candles = self.client.get_recent_closes(product_id, self.config.pump_window_minutes)
-            except Exception as exc:
-                logger.warning(f"failed to fetch candles for {product_id}: {exc}")
-                continue
-
-            is_pump, pct_change = detect_pump(
-                candles, self.config.pump_window_minutes, self.config.pump_threshold_pct
-            )
-            if not is_pump:
-                continue
-
-            entry_price = candles[-1].close
+            entry_price = result["last_close"]
             quantity = self.config.position_size_usd / entry_price
 
-            logger.info(f"PUMP detected {product_id} +{pct_change:.2f}% -> buying ${self.config.position_size_usd:.2f}")
+            logger.info(
+                f"PUMP detected {product_id} +{result['pct_change']:.2f}% -> buying ${self.config.position_size_usd:.2f}"
+            )
 
             if not self.config.dry_run:
                 self.client.market_buy(product_id, self.config.position_size_usd)
 
             self.store.open_position(product_id, entry_price, quantity, self.config.position_size_usd)
+
+        if self.market_state is not None:
+            top_movers = sorted(results, key=lambda r: r["pct_change"], reverse=True)[:TOP_MOVERS_LIMIT]
+            self.market_state.update(top_movers, len(product_ids), time.time() - start)
 
         return len(product_ids)
 
