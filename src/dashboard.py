@@ -186,6 +186,14 @@ PAGE = """
     .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .table-scroll table { min-width: 640px; }
 
+    .pager { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 14px 0 2px; font-size: 12px; color: var(--ink-dim); }
+    .pager button {
+      background: var(--paper-alt); border: 1px solid var(--hairline); color: var(--ink);
+      border-radius: 100px; padding: 5px 14px; font-size: 12px; cursor: pointer;
+    }
+    .pager button:hover:not(:disabled) { border-color: var(--ink-faint); }
+    .pager button:disabled { opacity: 0.4; cursor: default; }
+
     @media (max-width: 640px) {
       .wrap { padding: 28px 16px 50px; }
       .brand h1 { font-size: 23px; }
@@ -260,6 +268,51 @@ PAGE = """
       html.setAttribute('data-theme', next);
       try { localStorage.setItem('cmb-theme', next); } catch (e) {}
     }
+
+    const ROWS_PER_PAGE = 10;
+    const paginationState = {};
+
+    function paginateContainer(id) {
+      const container = document.getElementById(id);
+      if (!container) return;
+      const table = container.querySelector('table');
+      const oldPager = container.querySelector('.pager');
+      if (oldPager) oldPager.remove();
+      if (!table) return;
+
+      const tbody = table.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const totalPages = Math.max(1, Math.ceil(rows.length / ROWS_PER_PAGE));
+      let page = paginationState[id] || 0;
+      if (page >= totalPages) page = totalPages - 1;
+      if (page < 0) page = 0;
+      paginationState[id] = page;
+
+      rows.forEach((row, i) => {
+        row.hidden = !(i >= page * ROWS_PER_PAGE && i < (page + 1) * ROWS_PER_PAGE);
+      });
+
+      if (rows.length <= ROWS_PER_PAGE) return;
+
+      const pager = document.createElement('div');
+      pager.className = 'pager';
+      pager.innerHTML =
+        '<button' + (page === 0 ? ' disabled' : '') + ' data-dir="-1">Prev</button>' +
+        '<span>Page ' + (page + 1) + ' of ' + totalPages + '</span>' +
+        '<button' + (page >= totalPages - 1 ? ' disabled' : '') + ' data-dir="1">Next</button>';
+      pager.querySelectorAll('button').forEach((btn) => {
+        btn.onclick = () => {
+          paginationState[id] = (paginationState[id] || 0) + parseInt(btn.dataset.dir, 10);
+          paginateContainer(id);
+        };
+      });
+      container.appendChild(pager);
+    }
+
+    function paginateAll() {
+      ['top-movers', 'open-table', 'closed-table'].forEach(paginateContainer);
+    }
+
     async function refresh() {
       try {
         const res = await fetch('/api/render');
@@ -269,9 +322,11 @@ PAGE = """
         document.getElementById('open-table').innerHTML = data.open_table_html;
         document.getElementById('closed-table').innerHTML = data.closed_table_html;
         document.getElementById('ts').textContent = new Date().toLocaleTimeString();
+        paginateAll();
       } catch (e) { /* keep last good render */ }
     }
     setInterval(refresh, 5000);
+    paginateAll();
   </script>
 </body>
 </html>
