@@ -113,22 +113,23 @@ def test_dashboard_open_without_auth_configured(store):
 
 def test_dashboard_requires_auth_when_configured(store):
     cfg = Config()
-    cfg.dashboard_user = "amery"
-    cfg.dashboard_password = "secret123"
+    cfg.dashboard_access_key = "secret123"
     app = create_app(store, client=None, config=cfg)
     client = app.test_client()
 
     resp = client.get("/")
     assert resp.status_code == 401
 
-    import base64
-    creds = base64.b64encode(b"amery:secret123").decode()
-    resp = client.get("/", headers={"Authorization": f"Basic {creds}"})
-    assert resp.status_code == 200
-
-    bad_creds = base64.b64encode(b"amery:wrong").decode()
-    resp = client.get("/", headers={"Authorization": f"Basic {bad_creds}"})
+    resp = client.get("/?key=wrong")
     assert resp.status_code == 401
+
+    resp = client.get("/?key=secret123")
+    assert resp.status_code == 200
+    assert resp.headers.get("Set-Cookie") and "key=secret123" in resp.headers["Set-Cookie"]
+
+    # cookie set by the previous request lets a bare visit through without the URL key
+    resp = client.get("/")
+    assert resp.status_code == 200
 
 
 def test_top_movers_render_with_market_state(store):

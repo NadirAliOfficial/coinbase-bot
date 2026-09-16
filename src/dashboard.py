@@ -1,7 +1,7 @@
 import datetime as dt
 import hmac
 
-from flask import Flask, jsonify, render_template_string, request, Response
+from flask import Flask, g, jsonify, render_template_string, request, Response
 
 from .config import Config
 from .positions import PositionStore
@@ -511,21 +511,31 @@ def create_app(store: PositionStore, client=None, config: Config = None, market_
 
     @app.before_request
     def _auth_guard():
-        if not config.dashboard_user:
+        if not config.dashboard_access_key:
             return None
-        auth = request.authorization
-        valid = (
-            auth is not None
-            and hmac.compare_digest(auth.username, config.dashboard_user)
-            and hmac.compare_digest(auth.password, config.dashboard_password)
-        )
-        if not valid:
-            return Response(
-                "Authentication required",
-                401,
-                {"WWW-Authenticate": 'Basic realm="Coinbase Bot"'},
+
+        cookie_key = request.cookies.get("key")
+        if cookie_key and hmac.compare_digest(cookie_key, config.dashboard_access_key):
+            return None
+
+        url_key = request.args.get("key")
+        if url_key and hmac.compare_digest(url_key, config.dashboard_access_key):
+            g.set_key_cookie = True
+            return None
+
+        return Response("Authentication required. Open the link with ?key=... once.", 401)
+
+    @app.after_request
+    def _persist_key_cookie(response):
+        if getattr(g, "set_key_cookie", False):
+            response.set_cookie(
+                "key",
+                config.dashboard_access_key,
+                max_age=60 * 60 * 24 * 365,
+                httponly=True,
+                samesite="Lax",
             )
-        return None
+        return response
 
     def _price_lookup(open_positions):
         lookup = {}
