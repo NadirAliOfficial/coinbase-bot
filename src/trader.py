@@ -90,7 +90,15 @@ class Trader:
             self.store.open_position(product_id, entry_price, quantity, self.config.position_size_usd)
 
         if self.market_state is not None:
-            top_movers = sorted(results, key=lambda r: r["pct_change"], reverse=True)[:TOP_MOVERS_LIMIT]
+            # Coinbase lists most coins on both USD and USDC; show each base asset once
+            # (keeping its best-performing pair) so the panel isn't full of duplicates.
+            best_by_base = {}
+            for r in results:
+                base = r["product_id"].split("-")[0]
+                if base not in best_by_base or r["pct_change"] > best_by_base[base]["pct_change"]:
+                    best_by_base[base] = r
+
+            top_movers = sorted(best_by_base.values(), key=lambda r: r["pct_change"], reverse=True)[:TOP_MOVERS_LIMIT]
             self.market_state.update(top_movers, len(product_ids), time.time() - start)
 
         return len(product_ids)

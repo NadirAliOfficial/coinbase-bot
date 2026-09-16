@@ -153,3 +153,23 @@ def test_scan_and_buy_updates_market_state_with_top_movers(config):
     top_ids = [m["product_id"] for m in snapshot["top_movers"]]
     assert top_ids[0] == "BTC-USD"  # highest pct_change first
     assert "ETH-USD" in top_ids
+
+
+def test_top_movers_dedupes_same_base_asset_across_quote_currencies(config):
+    store = PositionStore(config.db_path)
+    candles = {
+        "BTC-USD": make_candles([100.0] * 15 + [110.0]),  # +10%
+        "BTC-USDC": make_candles([100.0] * 15 + [118.0]),  # +18%, better pair
+        "ETH-USD": make_candles([100.0] * 15 + [105.0]),  # +5%
+    }
+    client = FakeClient(prices={}, candles=candles)
+    market_state = MarketState()
+    trader = Trader(client, config, store, market_state)
+
+    trader.scan_and_buy()
+    snapshot = market_state.snapshot()
+
+    top_ids = [m["product_id"] for m in snapshot["top_movers"]]
+    assert top_ids.count("BTC-USD") + top_ids.count("BTC-USDC") == 1  # only one BTC row
+    assert "BTC-USDC" in top_ids  # the better-performing pair was kept
+    assert "ETH-USD" in top_ids
