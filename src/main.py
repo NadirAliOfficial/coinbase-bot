@@ -44,7 +44,9 @@ def main():
 
     app = create_app(store, client, config, market_state)
     dashboard_thread = threading.Thread(
-        target=lambda: app.run(host=config.dashboard_host, port=config.dashboard_port, use_reloader=False),
+        target=lambda: app.run(
+            host=config.dashboard_host, port=config.dashboard_port, use_reloader=False, threaded=True
+        ),
         daemon=True,
     )
     dashboard_thread.start()
